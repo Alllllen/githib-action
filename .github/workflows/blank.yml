@@ -1,36 +1,47 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
   pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: ["main"]
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  lint:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Cache npm dependencies
+        id: cache-npm
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Print cache hit status
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          if [ "${{ steps.cache-npm.outputs.cache-hit }}" == "true" ]; then
+            echo "Cache hit: The npm dependencies cache was restored."
+          else
+            echo "Cache miss: No cache found, dependencies will be installed."
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        id: eslint
+        run: |
+          npx eslint . || echo "ESLint failed"
+      
+      - name: Check if ESLint found errors
+        if: failure() && steps.eslint.outcome == 'failure'
+        run: |
+          PR_COMMENT_BODY="### ESLint found errors in your code:\n\n\`\`\`bash\n$(cat eslint-report.log)\n\`\`\`"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -d '{"body": "'"${PR_COMMENT_BODY}"'"}' \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
