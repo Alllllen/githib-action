@@ -1,3 +1,3 @@
 const _ = require('lodash');
 
-console.log(_.join(['Hello', 'npm'], ' '));
+console.log(_.join(['Hello', 'npm'], ' '))
