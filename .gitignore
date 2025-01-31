@@ -1,0 +1,16 @@
+ # Node.js 模組
+/node_modules/
+
+# 繼承的資料夾 (如果你使用的是編譯的 JavaScript 例如 TypeScript)
+dist/
+build/
+
+# 臨時檔案
+*.log
+
+# 系統生成的檔案
+.DS_Store        # macOS
+Thumbs.db        # Windows
+
+# 其他設定檔
+.env             # 如果你存放環境變數
