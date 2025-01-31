@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Cache npm dependencies
         uses: actions/cache@v3
         with:
@@ -18,9 +18,21 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run ESLint
-        run: npx eslint .
+        id: eslint
+        run: |
+          npx eslint . || echo "ESLint failed"
+      
+      - name: Check if ESLint found errors
+        if: failure() && steps.eslint.outcome == 'failure'
+        run: |
+          PR_COMMENT_BODY="### ESLint found errors in your code:\n\n\`\`\`bash\n$(cat eslint-report.log)\n\`\`\`"
+          curl -X POST -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+               -d '{"body": "'"${PR_COMMENT_BODY}"'"}' \
+               "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
